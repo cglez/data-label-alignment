@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument('--gpu', action='store_true', default=False)
     parser.add_argument('--sample_size', required=True, type=int)
     parser.add_argument('--run_number', required=True, type=int)
+    parser.add_argument('--model', required=False, type=str, default='bag-of-words,bert-base-uncased')
     parser.add_argument('--specific_doc_ids', required=False, type=str, default='')
     return parser.parse_args()
 
@@ -239,7 +240,7 @@ class UnionFind:
 def main():
     args = parse_args()
 
-    representation_names = ['bag-of-words', 'roberta-large']
+    representation_names = args.model.split(',')
 
     # create output directories
     output_dirs = ['./results/{}/{}'.format(args.dataset, r.lower()) for r in representation_names]
