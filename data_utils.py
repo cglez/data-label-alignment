@@ -437,11 +437,8 @@ def load_contextual_embeddings_custom_data(text, dataset_dir, representation, us
 def load_custom_data(representation, ids, text, labels, dataset_dir, use_gpu):
     if representation == 'bag-of-words':
         return load_bag_of_words_custom_data(ids, text, labels, dataset_dir)
-    elif representation == 'roberta-large':
-        return load_contextual_embeddings_custom_data(text, dataset_dir, 'roberta-large', use_gpu)
     else:
-        print('Representation not supported yet: {}'.format(representation))
-        exit()
+        return load_contextual_embeddings_custom_data(text, dataset_dir, representation, use_gpu)
 
 
 # requires binary labels

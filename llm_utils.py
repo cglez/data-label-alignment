@@ -5,8 +5,8 @@
 import numpy as np
 import math
 import torch
-from transformers import RobertaTokenizer, RobertaTokenizerFast, RobertaModel, \
-                         BertTokenizer, BertTokenizerFast, BertModel
+from transformers import RobertaTokenizerFast, RobertaModel, BertTokenizerFast, BertModel, AutoTokenizer, AutoModel
+
 
 def get_contextual_embeddings_batched_just_CLS_token(contexts, questions, model_name, use_gpu):
 
@@ -30,6 +30,9 @@ def get_contextual_embeddings_batched_just_CLS_token(contexts, questions, model_
     elif model_name == 'roberta-large-snli':
         tokenizer = RobertaTokenizerFast.from_pretrained('roberta-large')
         model = RobertaModel.from_pretrained('./roberta-large-snli_fine-tuned')
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
+        model = AutoModel.from_pretrained(model_name)
 
     # Set the model in evaluation mode to deactivate the DropOut modules
     # This is IMPORTANT to have reproducible results during evaluation!
