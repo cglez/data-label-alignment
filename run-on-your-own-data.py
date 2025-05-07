@@ -6,6 +6,8 @@ import json
 from random import sample
 import collections
 
+import torch.cuda
+
 from ddc_utils import get_eigenvalues_and_eigenvectors, \
                       get_complexity_with_eigendecomposition, \
                       get_H_infty, \
@@ -21,10 +23,9 @@ import time
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', required=True, type=str)
-    parser.add_argument('--dataset_fn', required=True, type=str)
-    parser.add_argument('--gpu', action='store_true', default=False)
-    parser.add_argument('--sample_size', required=True, type=int)
-    parser.add_argument('--run_number', required=True, type=int)
+    parser.add_argument('--dataset_fn', required=False, type=str, default=None)
+    parser.add_argument('--sample_size', required=False, type=int, default=1_000)
+    parser.add_argument('--run_number', required=False, type=int, default=1)
     parser.add_argument('--model', required=False, type=str, default='bag-of-words,bert-base-uncased')
     parser.add_argument('--specific_doc_ids', required=False, type=str, default='')
     return parser.parse_args()
@@ -43,10 +44,10 @@ def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, out
     labels[labels == 0] = -1
     num_true = len(labels[labels == 1])
 
-    H_infty_fn = '{}/H_infty-{}_{}-features_{}-docs_run-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
-    H_inverse_fn = '{}/H_inverse-{}_{}-features_{}-docs_run-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
-    w_fn = '{}/eigenvalues-{}_{}-features_{}-docs_run-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
-    v_fn = '{}/eigenvectors-{}_{}-features_{}-docs_run-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
+    H_infty_fn = '{}/H_infty-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
+    H_inverse_fn = '{}/H_inverse-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
+    w_fn = '{}/eigenvalues-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
+    v_fn = '{}/eigenvectors-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
 
     # do not save the Gram matrix or its eigendecomposition
     # and do not load any cached versions
@@ -80,14 +81,14 @@ def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, out
 
     start = time.time()
 
-    average_random, sigma_random, epsilon, delta, F_at_ddc, F_at_ddc_upper_bound = get_empirical_random_complexity(eigenvalues, eigenvectors, n, num_true, output_dir, '{}-{}_run-{}'.format(dataset, representation, run_number), complexity, eigenvalues[0], eigenvalues[-1])
+    average_random, sigma_random, epsilon, delta, F_at_ddc, F_at_ddc_upper_bound = get_empirical_random_complexity(eigenvalues, eigenvectors, n, num_true, output_dir, f'{run_number}', complexity, eigenvalues[0], eigenvalues[-1])
 
     end = time.time()
     times['random_label_sampling_{}'.format(representation)] = end - start
     print('Done with sampling random labels.')
 
     # save results
-    fn = '{}/{}-{}-results_run-{}.json'.format(output_dir, dataset, representation, run_number)
+    fn = '{}/results-{}.json'.format(output_dir, run_number)
     with open(fn, 'w') as f:
         results_json = {'dataset': dataset, 'representation': representation,
                    'sample_size': n, 'run_number': run_number,
@@ -100,7 +101,7 @@ def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, out
                    'F_at_ddc_upper_bound': F_at_ddc_upper_bound,
                    'empirical_distribution': 'balanced',
                    'elapsed_times': times}
-        json.dump(results_json, f)
+        json.dump(results_json, f, indent=2)
         json.dumps(results_json, indent=2)
     print('Dataset: {} / Representation: {}'.format(dataset, representation))
     print('Saved results at: {}'.format(fn))
@@ -254,6 +255,8 @@ def main():
     times = {}
 
     # load raw text, ids, labels
+    if args.dataset_fn is None:
+        args.dataset_fn = f'data/{args.dataset}.json'
     ids, text, labels = read_raw_data(args.dataset_fn)
     
     # sample evenly balanced documents
@@ -265,7 +268,7 @@ def main():
     all_duplicate_id_pairs = []
     for representation, file_dir in zip(representation_names, file_dirs):
         print('Representation: {}'.format(representation))
-        docs_by_features = load_custom_data(representation, ids, text, labels, file_dir, args.gpu)
+        docs_by_features = load_custom_data(representation, ids, text, labels, file_dir, torch.cuda.is_available())
         duplicate_id_pairs, H, times = deduplicate(ids, docs_by_features, times, representation)
         all_data_representations.append(docs_by_features)
         all_duplicate_id_pairs.extend(duplicate_id_pairs)
@@ -290,7 +293,7 @@ def main():
     # save doc ids
     if args.specific_doc_ids == '':
         for output_dir in output_dirs:
-            with open('{}/{}-sampled-doc-ids_run-{}.json'.format(output_dir, args.dataset, args.run_number), 'w') as f:
+            with open(f'{output_dir}/doc-ids-{args.run_number}.json', 'w') as f:
                 if isinstance(ids[0], list):
                     ids = [tuple(idx) for idx in ids]
                 json.dump(ids, f)
@@ -304,7 +307,7 @@ def main():
         results_fns.append(results_fn)
 
     # make plots
-    name = '{}_run-number-{}'.format(args.dataset, args.run_number)
+    name = '{}-{}'.format(args.dataset, args.run_number)
     plot_results(results_fns, name)
 
     # print the report of settings

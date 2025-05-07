@@ -125,7 +125,7 @@ def plot_ddc_empirical_density(dir_name, title, random_complexities, reference_d
     ax.text(reference_ddc, -0.3, "DDC", transform=ax.get_xaxis_transform(), horizontalalignment='center', fontweight='bold')
     ax.scatter(np.mean(random_complexities), 0, s=200, marker='|', clip_on=False, color='black', zorder=10)
     ax.text(np.mean(random_complexities), -0.2, "E[DDC]", transform=ax.get_xaxis_transform(), horizontalalignment='center', fontweight='bold')
-    savefig('{}/DDC-histogram_{}.pdf'.format(dir_name, title), bbox_inches='tight')
+    savefig('{}/DDC-histogram-{}.pdf'.format(dir_name, title), bbox_inches='tight')
     plt.close()
 
 # plot the empirical distribution function of DDC values
@@ -189,7 +189,7 @@ def plot_ddc_empirical_distribution_function(dir_name, title, random_complexitie
     print('         ε_dkw <= {:.8f}'.format(epsilon_dkw))
     print('F(DDC) + ε_dkw <= {:.8f}'.format(F_at_ddc_upper_bound))
 
-    savefig('{}/DDC-distribution-function_{}.pdf'.format(dir_name, title), bbox_inches='tight')
+    savefig('{}/DDC-distribution-function-{}.pdf'.format(dir_name, title), bbox_inches='tight')
     plt.close()
     return F_at_ddc, F_at_ddc_upper_bound
 
@@ -235,7 +235,7 @@ def get_empirical_random_complexity(eigenvalues, eigenvectors, n, num_true, dir_
     ax.plot(range(len(average_of_first_n)), average_of_first_n)
     ax.set_ylabel('Average random DDC')
     ax.set_xlabel('Number of random DDC samples')
-    savefig('{}/random-DDC-prefix-averages_{}.pdf'.format(dir_name, title), bbox_inches='tight')
+    savefig('{}/random-DDC-prefix-averages-{}.pdf'.format(dir_name, title), bbox_inches='tight')
     plt.close()
 
     # plot histogram!
@@ -245,7 +245,7 @@ def get_empirical_random_complexity(eigenvalues, eigenvectors, n, num_true, dir_
 
 
     # save results for future consolidated plotting
-    with open('{}/{}_random-complexities.json'.format(dir_name, title), 'w') as f:
+    with open('{}/random-complexities-{}.json'.format(dir_name, title), 'w') as f:
         json.dump(random_complexities, f)
 
     # TODO plot histogram of DDC values
