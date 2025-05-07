@@ -41,6 +41,7 @@ def get_contextual_embeddings_batched_just_CLS_token(contexts, questions, model_
     max_length = 80
     num_docs = len(contexts)
     unrolled_num_features = model.config.hidden_size
+    use_pairs = questions[0] is not None
 
     docs_by_hidden_features = np.empty((num_docs, unrolled_num_features))
 
@@ -52,7 +53,10 @@ def get_contextual_embeddings_batched_just_CLS_token(contexts, questions, model_
         
         c_batch = contexts[start_idx:end_idx]
         q_batch = questions[start_idx:end_idx]
-        tokenized_output = tokenizer(c_batch, q_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
+        if use_pairs:
+            tokenized_output = tokenizer(c_batch, q_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
+        else:
+            tokenized_output = tokenizer(c_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
         #print(tokenized_output)
         tokens_tensor = tokenized_output['input_ids']
         # tell the model to ignore the padding we added to get uniform sentence size in the batch
@@ -139,6 +143,7 @@ def get_contextual_embeddings_batched_mean_hidden_tokens(contexts, questions, mo
     max_length = 80
     num_docs = len(contexts)
     unrolled_num_features = model.config.hidden_size
+    use_pairs = questions[0] is not None
 
     docs_by_hidden_features = np.empty((num_docs, unrolled_num_features))
 
@@ -150,7 +155,10 @@ def get_contextual_embeddings_batched_mean_hidden_tokens(contexts, questions, mo
         
         c_batch = contexts[start_idx:end_idx]
         q_batch = questions[start_idx:end_idx]
-        tokenized_output = tokenizer(c_batch, q_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
+        if use_pairs:
+            tokenized_output = tokenizer(c_batch, q_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
+        else:
+            tokenized_output = tokenizer(c_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
         #print(tokenized_output)
         tokens_tensor = tokenized_output['input_ids']
         # tell the model to ignore the padding we added to get uniform sentence size in the batch
@@ -237,6 +245,7 @@ def get_contextual_embeddings_batched(contexts, questions, model_name, use_gpu):
     max_length = 80
     num_docs = len(contexts)
     unrolled_num_features = max_length * model.config.hidden_size
+    use_pairs = questions[0] is not None
 
     docs_by_hidden_features = np.empty((num_docs, unrolled_num_features))
 
@@ -248,8 +257,10 @@ def get_contextual_embeddings_batched(contexts, questions, model_name, use_gpu):
         
         c_batch = contexts[start_idx:end_idx]
         q_batch = questions[start_idx:end_idx]
-        tokenized_output = tokenizer(c_batch, q_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
-        
+        if use_pairs:
+            tokenized_output = tokenizer(c_batch, q_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
+        else:
+            tokenized_output = tokenizer(c_batch, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
         tokens_tensor = tokenized_output['input_ids']
         # tell the model to ignore the padding we added to get uniform sentence size in the batch
         attention_tensor = tokenized_output['attention_mask']
