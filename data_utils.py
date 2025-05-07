@@ -411,17 +411,16 @@ def load_bag_of_words_custom_data(ids, text, labels, dataset_dir):
 
     docs_by_features = construct_bags_of_words(text, vocab_fn)
 
-
-
     # make sure there are no zero-length documents
     ids_to_keep = np.where(np.sum(docs_by_features, axis=1) >= 0)[0]
     assert ids_to_keep.shape[0] == docs_by_features.shape[0]
 
     return normalize_data(docs_by_features)
 
+
 def load_contextual_embeddings_custom_data(text, dataset_dir, representation, use_gpu):
     if not isinstance(text[0], list):
-        text = [[x, ''] for x in text]
+        text = [[x, None] for x in text]
     assert isinstance(text[0], list), f'text is {type(text[0])}'
     assert len(text[0]) == 2
 
@@ -433,6 +432,7 @@ def load_contextual_embeddings_custom_data(text, dataset_dir, representation, us
     docs_by_features = get_contextual_embeddings_batched_just_CLS_token(contexts, questions, representation, use_gpu)
 
     return normalize_data(docs_by_features)
+
 
 def load_custom_data(representation, ids, text, labels, dataset_dir, use_gpu):
     if representation == 'bag-of-words':
@@ -465,6 +465,7 @@ def read_raw_data(fn):
     label_to_index = {l: i for i, l in enumerate(unique_labels)}
     labels = np.array([label_to_index[l] for l in labels])
     return ids, text, labels
+
 
 def normalize_data(docs_by_features):
     print('l2-normalizing documents.')

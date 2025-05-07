@@ -21,8 +21,8 @@ def plot_results(result_fns, name):
 
     print('Plotting.')
 
-    if not os.path.exists('./graphs'):
-        os.makedirs('./graphs')
+    if not os.path.exists('./results/graphs'):
+        os.makedirs('./results/graphs')
 
     # first consolidate results into dataframe
     datasets = []
@@ -55,26 +55,26 @@ def plot_results(result_fns, name):
     # equivalent of figure 8a
     plt.figure()
     ax = sns.barplot(x='Representation', y='DDC', data=results)
-    savefig('./graphs/ddc_{}.pdf'.format(name), bbox_inches='tight')
+    savefig('./results/graphs/ddc_{}.pdf'.format(name), bbox_inches='tight')
     plt.close()
 
     # equivalent of figure 8b
     plt.figure()
     ax = sns.barplot(x='Representation', y='E[DDC]', data=results)
-    savefig('./graphs/ddc-random_{}.pdf'.format(name), bbox_inches='tight')
+    savefig('./results/graphs/ddc-random_{}.pdf'.format(name), bbox_inches='tight')
     plt.close()
 
     # equivalent of figure 8c
     plt.figure()
     ax = sns.barplot(x='Representation', y='DDC / E[DDC]', data=results)
     ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1.0))
-    savefig('./graphs/ddc-ratio_{}.pdf'.format(name), bbox_inches='tight')
+    savefig('./results/graphs/ddc-ratio_{}.pdf'.format(name), bbox_inches='tight')
     plt.close()
 
     # equivalent of figure 8d
     plt.figure()
     ax = sns.barplot(x='Representation', y='# of std devs DDC\nis above or below E[DDC]', data=results)
     ax.axhline(linewidth=1, color='#cccccc')
-    savefig('./graphs/ddc-z-score_{}.pdf'.format(name), bbox_inches='tight')
+    savefig('./results/graphs/ddc-z-score_{}.pdf'.format(name), bbox_inches='tight')
     plt.close()
 

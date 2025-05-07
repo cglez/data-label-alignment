@@ -100,7 +100,7 @@ def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, out
                    'empirical_distribution': 'balanced',
                    'elapsed_times': times}
         json.dump(results_json, f)
-        json.dumps(results_json)
+        json.dumps(results_json, indent=2)
     print('Dataset: {} / Representation: {}'.format(dataset, representation))
     print('Saved results at: {}'.format(fn))
     return fn
@@ -242,8 +242,8 @@ def main():
     representation_names = ['bag-of-words', 'roberta-large']
 
     # create output directories
-    output_dirs = ['./{}-{}'.format(args.dataset, r.lower()) for r in representation_names] 
-    file_dirs = ['./TEMP-FILES_{}-{}'.format(args.dataset, r.lower()) for r in representation_names]
+    output_dirs = ['./results/{}/{}'.format(args.dataset, r.lower()) for r in representation_names]
+    file_dirs = ['./results/.TEMP-FILES/{}-{}'.format(args.dataset, r.lower()) for r in representation_names]
     for output_dir, file_dir in zip(output_dirs, file_dirs):    
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
