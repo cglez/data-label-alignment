@@ -206,7 +206,7 @@ def construct_bags_of_words(text, vocab_fn):
     
     vectorizer = CountVectorizer(vocabulary=vocabulary)
     X = vectorizer.fit_transform(text)
-    features = vectorizer.get_feature_names()
+    features = vectorizer.get_feature_names_out()
     docs_by_features = X.toarray().astype(np.float64)
     print('Total number of word types: {}'.format(len(features)))
 
@@ -216,10 +216,10 @@ def save_full_bag_of_words_vocab(text, vocab_fn):
     print('Bagging full dataset with full vocab.')
     vectorizer = CountVectorizer()
     X = vectorizer.fit_transform(text)
-    features = vectorizer.get_feature_names()
+    features = vectorizer.get_feature_names_out()
     print('Total number of word types: {}'.format(len(features)))
-    with open(vocab_fn, 'w') as f:
-        json.dump(features, f)
+    with open(vocab_fn, 'w', encoding='utf-8') as f:
+        json.dump(features.tolist(), f)
 
 def load_bag_of_words(dataset, dataset_dir, dataset_reader, downsample, sample_size, specific_doc_ids, doc_id_converter, vocab_fn):
     print('Loading {} dataset.'.format(dataset))
@@ -420,7 +420,9 @@ def load_bag_of_words_custom_data(ids, text, labels, dataset_dir):
     return normalize_data(docs_by_features)
 
 def load_contextual_embeddings_custom_data(text, dataset_dir, representation, use_gpu):
-    assert isinstance(text[0], list)
+    if not isinstance(text[0], list):
+        text = [[x, ''] for x in text]
+    assert isinstance(text[0], list), f'text is {type(text[0])}'
     assert len(text[0]) == 2
 
     contexts = [c for c, _ in text]
