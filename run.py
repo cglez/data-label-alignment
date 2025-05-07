@@ -7,6 +7,7 @@ from random import sample
 import collections
 
 import torch.cuda
+import transformers
 
 from ddc_utils import get_eigenvalues_and_eigenvectors, \
                       get_complexity_with_eigendecomposition, \
@@ -20,22 +21,23 @@ from plot_utils import plot_results
 import argparse
 import time
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', required=True, type=str)
     parser.add_argument('--dataset_fn', required=False, type=str, default=None)
     parser.add_argument('--sample_size', required=False, type=int, default=1_000)
-    parser.add_argument('--run_number', required=False, type=int, default=1)
+    parser.add_argument('--seed', required=False, type=int, default=[120, 220, 320, 420, 520])
     parser.add_argument('--model', required=False, type=str, default='bag-of-words,bert-base-uncased')
     parser.add_argument('--specific_doc_ids', required=False, type=str, default='')
     return parser.parse_args()
 
+
 # data: a numpy array: n x num_features
 # labels: a 1-d numpy array of length n
 # dataset: string used for labeling output and temp files
-def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, output_dir, run_number, times, H_infty=None):
-    
-    print('Run number: {}'.format(run_number))
+def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, output_dir, seed, times, H_infty=None):
+    print('Run number: {}'.format(seed))
 
     n = data.shape[0]
     num_features = data.shape[1]
@@ -44,10 +46,10 @@ def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, out
     labels[labels == 0] = -1
     num_true = len(labels[labels == 1])
 
-    H_infty_fn = '{}/H_infty-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
-    H_inverse_fn = '{}/H_inverse-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
-    w_fn = '{}/eigenvalues-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
-    v_fn = '{}/eigenvectors-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, run_number)
+    H_infty_fn = '{}/H_infty-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, seed)
+    H_inverse_fn = '{}/H_inverse-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, seed)
+    w_fn = '{}/eigenvalues-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, seed)
+    v_fn = '{}/eigenvectors-{}_{}-features_{}-docs-{}.npy'.format(file_dir, dataset, num_features, n, seed)
 
     # do not save the Gram matrix or its eigendecomposition
     # and do not load any cached versions
@@ -66,14 +68,12 @@ def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, out
     parallel_vectors = np.argwhere(np.isclose(H_infty, 0.5, atol=1e-08) == True)
     num_parallel_vectors = parallel_vectors.shape[0]
     assert n == num_parallel_vectors
-    
-    
+
     # get the eigendecomposition of the Gram matrix
     start = time.time()
     eigenvalues, eigenvectors =  get_eigenvalues_and_eigenvectors(H_infty, n, w_fn, v_fn, recalculate=recalc, save=save)
     end = time.time()
     times['eigendecomposition_{}'.format(representation)] = end - start
-
 
     complexity = get_complexity_with_eigendecomposition(eigenvalues, eigenvectors, labels, n)
     print('DDC = {:.4f}'.format(complexity))
@@ -81,17 +81,17 @@ def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, out
 
     start = time.time()
 
-    average_random, sigma_random, epsilon, delta, F_at_ddc, F_at_ddc_upper_bound = get_empirical_random_complexity(eigenvalues, eigenvectors, n, num_true, output_dir, f'{run_number}', complexity, eigenvalues[0], eigenvalues[-1])
+    average_random, sigma_random, epsilon, delta, F_at_ddc, F_at_ddc_upper_bound = get_empirical_random_complexity(eigenvalues, eigenvectors, n, num_true, output_dir, f'{seed}', complexity, eigenvalues[0], eigenvalues[-1])
 
     end = time.time()
     times['random_label_sampling_{}'.format(representation)] = end - start
     print('Done with sampling random labels.')
 
     # save results
-    fn = '{}/results-{}.json'.format(output_dir, run_number)
+    fn = '{}/results-{}.json'.format(output_dir, seed)
     with open(fn, 'w') as f:
         results_json = {'dataset': dataset, 'representation': representation,
-                   'sample_size': n, 'run_number': run_number,
+                   'sample_size': n, 'seed': seed,
                    'ddc': complexity,
                    'expectation_upper_bound': expectation,
                    'expectation_empirical': average_random,
@@ -142,6 +142,7 @@ def downsample(ids, text, labels, sample_size, ids_to_exclude=[], all_data_repre
 
     return ids, text, labels, downsampled_datas
 
+
 # for working with custom data
 def downsample_truncate(ids, text, labels, ids_to_exclude=[], all_data_representations=[], all_Hs=[], verbose=True):
     positive_idxs = set(np.where(labels == 1)[0])
@@ -184,6 +185,7 @@ def downsample_truncate(ids, text, labels, ids_to_exclude=[], all_data_represent
 
     return ids, text, labels, downsampled_datas, downsampled_Hs
 
+
 def deduplicate(ids, data, times, representation):
     # do not save the Gram matrix
     # and do not load any cached versions
@@ -212,6 +214,7 @@ def deduplicate(ids, data, times, representation):
     print('Time to deduplicate:', end - start)
     times['deduplicate_H_infty_construction_{}'.format(representation)] = end - start
     return duplicate_pairs, H_infty, times
+
 
 # from https://stackoverflow.com/questions/48873107/detecting-equivalent-classes-with-python
 class UnionFind:
@@ -242,6 +245,7 @@ def main():
     args = parse_args()
 
     representation_names = args.model.split(',')
+    seeds = [args.seed] if args.seed is int else args.seed
 
     # create output directories
     output_dirs = ['./results/{}/{}'.format(args.dataset, r.lower()) for r in representation_names]
@@ -252,83 +256,76 @@ def main():
         if not os.path.exists(file_dir):
             os.makedirs(file_dir)
 
-    times = {}
+    for seed in seeds:
+        transformers.set_seed(seed)
 
-    # load raw text, ids, labels
-    if args.dataset_fn is None:
-        args.dataset_fn = f'data/{args.dataset}.json'
-    ids, text, labels = read_raw_data(args.dataset_fn)
-    
-    # sample evenly balanced documents
-    ids, text, labels, _ = downsample(ids, text, labels, args.sample_size)
+        times = {}
 
-    # get different representations: bow and pre-trained embeddings
-    all_data_representations = []
-    all_Hs = []
-    all_duplicate_id_pairs = []
-    for representation, file_dir in zip(representation_names, file_dirs):
-        print('Representation: {}'.format(representation))
-        docs_by_features = load_custom_data(representation, ids, text, labels, file_dir, torch.cuda.is_available())
-        duplicate_id_pairs, H, times = deduplicate(ids, docs_by_features, times, representation)
-        all_data_representations.append(docs_by_features)
-        all_duplicate_id_pairs.extend(duplicate_id_pairs)
-        all_Hs.append(H)
+        # load raw text, ids, labels
+        if args.dataset_fn is None:
+            args.dataset_fn = f'data/{args.dataset}.json'
+        ids, text, labels = read_raw_data(args.dataset_fn)
 
-    # merge duplicate equivalence classes from all representations
-    uf = UnionFind()
-    for example_1, example_2 in all_duplicate_id_pairs:
-        uf.union(example_1, example_2)
-    equivalent_examples = uf.get_groups()
+        # sample evenly balanced documents
+        ids, text, labels, _ = downsample(ids, text, labels, args.sample_size)
 
-    # remove duplicates
-    # remove all but one example (arbitrary: here it's random) from each set of equivalent examples
-    ids_to_remove = [idx for duplicate_ids in equivalent_examples for idx in random.sample(list(duplicate_ids), len(duplicate_ids) - 1)]
+        # get different representations: bow and pre-trained embeddings
+        all_data_representations = []
+        all_Hs = []
+        all_duplicate_id_pairs = []
+        for representation, file_dir in zip(representation_names, file_dirs):
+            print('Representation: {}'.format(representation))
+            docs_by_features = load_custom_data(representation, ids, text, labels, file_dir, torch.cuda.is_available())
+            duplicate_id_pairs, H, times = deduplicate(ids, docs_by_features, times, representation)
+            all_data_representations.append(docs_by_features)
+            all_duplicate_id_pairs.extend(duplicate_id_pairs)
+            all_Hs.append(H)
 
-    # downsample so each class is balanced:
-    # truncate larger class to have same size as smaller class, so the classes are balanced
-    # and remove the duplicate rows/cols in the gram matrices so we can reuse them
-    ids, text, labels, all_data_representations, all_Hs = downsample_truncate(ids, text, labels, ids_to_remove, all_data_representations, all_Hs)
-    print('Total number of duplicates removed: {}'.format(len(ids_to_remove)))
+        # merge duplicate equivalence classes from all representations
+        uf = UnionFind()
+        for example_1, example_2 in all_duplicate_id_pairs:
+            uf.union(example_1, example_2)
+        equivalent_examples = uf.get_groups()
 
-    # save doc ids
-    if args.specific_doc_ids == '':
-        for output_dir in output_dirs:
-            with open(f'{output_dir}/doc-ids-{args.run_number}.json', 'w') as f:
-                if isinstance(ids[0], list):
-                    ids = [tuple(idx) for idx in ids]
-                json.dump(ids, f)
+        # remove duplicates
+        # remove all but one example (arbitrary: here it's random) from each set of equivalent examples
+        ids_to_remove = [idx for duplicate_ids in equivalent_examples for idx in random.sample(list(duplicate_ids), len(duplicate_ids) - 1)]
 
-    # run ddc on all representations
-    # and reuse the gram matrices constructed for deduplication
-    results_fns = []
-    for representation, docs_by_features, H, output_dir, file_dir in zip(representation_names, all_data_representations, all_Hs, output_dirs, file_dirs):
-        print('Getting DDC for representation: {}'.format(representation))
-        results_fn = get_ddc(ids, docs_by_features, labels, args.dataset, representation, file_dir, output_dir, args.run_number, times, H)
-        results_fns.append(results_fn)
+        # downsample so each class is balanced:
+        # truncate larger class to have same size as smaller class, so the classes are balanced
+        # and remove the duplicate rows/cols in the gram matrices so we can reuse them
+        ids, text, labels, all_data_representations, all_Hs = downsample_truncate(ids, text, labels, ids_to_remove, all_data_representations, all_Hs)
+        print('Total number of duplicates removed: {}'.format(len(ids_to_remove)))
 
-    # make plots
-    name = '{}-{}'.format(args.dataset, args.run_number)
-    plot_results(results_fns, name)
+        # save doc ids
+        if args.specific_doc_ids == '':
+            for output_dir in output_dirs:
+                with open(f'{output_dir}/doc-ids-{seed}.json', 'w') as f:
+                    if isinstance(ids[0], list):
+                        ids = [tuple(idx) for idx in ids]
+                    json.dump(ids, f)
 
-    # print the report of settings
-    print('-----------------------------------------')
-    print('Dataset name: {}'.format(args.dataset))
-    print('Dataset file: {}'.format(args.dataset_fn))
-    print('Run number: {}'.format(args.run_number))
-    print('Representations: {}'.format(', '.join(representation_names)))
-    print('Original number of examples: {}'.format(args.sample_size))
-    print('Number of examples after deduplicating: {}'.format(len(ids)))
+        # run ddc on all representations
+        # and reuse the gram matrices constructed for deduplication
+        results_fns = []
+        for representation, docs_by_features, H, output_dir, file_dir in zip(representation_names, all_data_representations, all_Hs, output_dirs, file_dirs):
+            print('Getting DDC for representation: {}'.format(representation))
+            results_fn = get_ddc(ids, docs_by_features, labels, args.dataset, representation, file_dir, output_dir, seed, times, H)
+            results_fns.append(results_fn)
 
-    
+        # make plots
+        name = '{}-{}'.format(args.dataset, seed)
+        plot_results(results_fns, name)
 
-
+        # print the report of settings
+        print('-----------------------------------------')
+        print('Dataset name: {}'.format(args.dataset))
+        print('Dataset file: {}'.format(args.dataset_fn))
+        print('Seed: {}'.format(seed))
+        print('Representations: {}'.format(', '.join(representation_names)))
+        print('Original number of examples: {}'.format(args.sample_size))
+        print('Number of examples after deduplicating: {}'.format(len(ids)))
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
