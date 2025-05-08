@@ -40,6 +40,7 @@ def parse_args():
 # dataset: string used for labeling output and temp files
 def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, output_dir, seed, times, H_infty=None):
     print('Run number: {}'.format(seed))
+    representation = rep_name(representation)
 
     n = data.shape[0]
     num_features = data.shape[1]
