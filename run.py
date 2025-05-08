@@ -13,7 +13,6 @@ from ddc_utils import get_eigenvalues_and_eigenvectors, \
                       get_complexity_with_eigendecomposition, \
                       get_H_infty, \
                       get_empirical_random_complexity, \
-                      get_inverse, \
                       get_expected_squared_ddc
 from data_utils import read_raw_data, load_custom_data
 from plot_utils import plot_results
@@ -26,7 +25,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', required=True, type=str)
     parser.add_argument('--dataset_fn', required=False, type=str, default=None)
-    parser.add_argument('--sample_size', required=False, type=int, default=1_000)
+    parser.add_argument('--sample_size', required=False, type=int, default=10_000)
     parser.add_argument('--seed', required=False, type=int, default=[120, 220, 320, 420, 520])
     parser.add_argument('--model', required=False, type=str, default='bag-of-words,bert-base-uncased')
     parser.add_argument('--specific_doc_ids', required=False, type=str, default='')
@@ -71,7 +70,7 @@ def get_ddc(doc_ids, data, labels_0_or_1, dataset, representation, file_dir, out
 
     # get the eigendecomposition of the Gram matrix
     start = time.time()
-    eigenvalues, eigenvectors =  get_eigenvalues_and_eigenvectors(H_infty, n, w_fn, v_fn, recalculate=recalc, save=save)
+    eigenvalues, eigenvectors = get_eigenvalues_and_eigenvectors(H_infty, n, w_fn, v_fn, recalculate=recalc, save=save)
     end = time.time()
     times['eigendecomposition_{}'.format(representation)] = end - start
 
@@ -241,6 +240,15 @@ class UnionFind:
         return list(groups.values())
 
 
+def rep_name(model: str) -> str:
+    model = model.lstrip('./').rstrip('/')
+    if model.startswith('data/model/') and '/' in model.removeprefix('data/model/'):
+        model = model.removeprefix('data/model/').replace('/', '_')
+    else:
+        model = os.path.basename(model)
+    return model
+
+
 def main():
     args = parse_args()
 
@@ -248,8 +256,8 @@ def main():
     seeds = [args.seed] if args.seed is int else args.seed
 
     # create output directories
-    output_dirs = ['./results/{}/{}'.format(args.dataset, r.lower()) for r in representation_names]
-    file_dirs = ['./results/.TEMP-FILES/{}-{}'.format(args.dataset, r.lower()) for r in representation_names]
+    output_dirs = [f'./results/{args.dataset}/{rep_name(r)}' for r in representation_names]
+    file_dirs = [f'./results/.TEMP-FILES/{args.dataset}-{rep_name(r)}' for r in representation_names]
     for output_dir, file_dir in zip(output_dirs, file_dirs):    
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
