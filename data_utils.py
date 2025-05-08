@@ -418,7 +418,9 @@ def load_bag_of_words_custom_data(ids, text, labels, dataset_dir):
     return normalize_data(docs_by_features)
 
 
-def load_contextual_embeddings_custom_data(text, dataset_dir, representation, use_gpu):
+def load_contextual_embeddings_custom_data(
+        text, dataset_dir, representation, use_gpu, pooling='mean', max_length=None, batch_size=32,
+):
     if not isinstance(text[0], list):
         text = [[x, None] for x in text]
     assert isinstance(text[0], list), f'text is {type(text[0])}'
@@ -429,16 +431,20 @@ def load_contextual_embeddings_custom_data(text, dataset_dir, representation, us
     print('Using {} documents.'.format(len(text)))
 
     # get the contextual embeddings
-    docs_by_features = get_contextual_embeddings_batched_just_CLS_token(contexts, questions, representation, use_gpu)
+    docs_by_features = get_contextual_embeddings_batched_just_CLS_token(
+        contexts, questions, representation, use_gpu, pooling=pooling, max_length=max_length, batch_size=batch_size)
 
     return normalize_data(docs_by_features)
 
 
-def load_custom_data(representation, ids, text, labels, dataset_dir, use_gpu):
+def load_custom_data(
+        representation, ids, text, labels, dataset_dir, use_gpu, pooling='mean', max_length=None, batch_size=32,
+):
     if representation == 'bag-of-words':
         return load_bag_of_words_custom_data(ids, text, labels, dataset_dir)
     else:
-        return load_contextual_embeddings_custom_data(text, dataset_dir, representation, use_gpu)
+        return load_contextual_embeddings_custom_data(
+            text, dataset_dir, representation, use_gpu, pooling=pooling, max_length=max_length, batch_size=batch_size)
 
 
 # requires binary labels

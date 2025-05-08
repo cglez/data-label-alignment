@@ -28,6 +28,9 @@ def parse_args():
     parser.add_argument('--sample_size', required=False, type=int, default=10_000)
     parser.add_argument('--seed', required=False, type=int, default=[120, 220, 320, 420, 520])
     parser.add_argument('--model', required=False, type=str, default='bag-of-words,bert-base-uncased')
+    parser.add_argument('--max_length', required=False, type=int, default=None)
+    parser.add_argument('--pooling', required=False, type=str, default='mean')
+    parser.add_argument('--batch_size', required=False, type=int, default=32)
     parser.add_argument('--specific_doc_ids', required=False, type=str, default='')
     return parser.parse_args()
 
@@ -283,7 +286,9 @@ def main():
         all_duplicate_id_pairs = []
         for representation, file_dir in zip(representation_names, file_dirs):
             print('Representation: {}'.format(representation))
-            docs_by_features = load_custom_data(representation, ids, text, labels, file_dir, torch.cuda.is_available())
+            docs_by_features = load_custom_data(
+                representation, ids, text, labels, file_dir, torch.cuda.is_available(),
+                pooling=args.pooling, max_length=args.max_length, batch_size=args.batch_size)
             duplicate_id_pairs, H, times = deduplicate(ids, docs_by_features, times, representation)
             all_data_representations.append(docs_by_features)
             all_duplicate_id_pairs.extend(duplicate_id_pairs)
