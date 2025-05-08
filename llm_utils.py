@@ -8,8 +8,19 @@ import torch
 from transformers import RobertaTokenizerFast, RobertaModel, BertTokenizerFast, BertModel, AutoTokenizer, AutoModel
 
 
-def get_contextual_embeddings_batched_just_CLS_token(contexts, questions, model_name, use_gpu):
+def mean_pooling(token_embeddings, attention_mask):
+    """ Mean Pooling. Take attention mask into account for correct averaging. """
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
 
+    numerator = torch.sum(token_embeddings * input_mask_expanded, dim=1)
+    denominator = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+    sentence_embeddings = numerator / denominator
+    return sentence_embeddings
+
+
+def get_contextual_embeddings_batched_just_CLS_token(
+        contexts, questions, model_name, use_gpu, pooling='cls', batch_size=32, max_length=80,
+):
     print('Torch version:', torch.__version__)
 
     if model_name == 'bert':
@@ -40,8 +51,6 @@ def get_contextual_embeddings_batched_just_CLS_token(contexts, questions, model_
     if use_gpu:
         model.to('cuda')
 
-    batch_size = 32
-    max_length = 80
     num_docs = len(contexts)
     unrolled_num_features = model.config.hidden_size
     use_pairs = questions[0] is not None
@@ -91,13 +100,17 @@ def get_contextual_embeddings_batched_just_CLS_token(contexts, questions, model_
         # bring the hidden layers back over to the cpu
         if use_gpu:
             encoded_layers = encoded_layers.cpu()
-        encoded_CLS = encoded_layers[:, 0, :]
+
+        if pooling == 'mean':
+            mean_pooling(encoded_layers, tokenized_output['attention_mask'])
+            encoded_CLS = encoded_layers[:, 0, :]
+        else:
+            encoded_CLS = encoded_layers[:, 0, :]
         # We have encoded the [CLS] that starts our input sequence in a FloatTensor of shape (batch size, model hidden dimension)
         assert tuple(encoded_CLS.shape) == (elements_in_batch, model.config.hidden_size)
         
         # unroll and store
         docs_by_hidden_features[start_idx:end_idx, :] = encoded_CLS
-
 
     print('cleaning up!')
     if use_gpu:
